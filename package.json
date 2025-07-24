@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@types/pngjs": "^6.0.5",
-    "pngjs": "^7.0.0"
+    "pngjs": "^7.0.0",
+    "simple-git": "^3.28.0"
   }
 }

@@ -1,5 +1,7 @@
 const fs = require("fs");
+import { spawn } from "node:child_process";
 import { PNG } from "pngjs";
+import simpleGit from "simple-git";
 
 const CHAR_HEIGHT = 7;
 const GAP = 1;
@@ -217,8 +219,58 @@ async function drawHallOfShame() {
 	canvas.pack().pipe(fs.createWriteStream("hall_of_shame.png"));
 }
 
+async function renderImageOnImage(png: PNG, imagePath: string, x: number, y: number): Promise<void> {
+	const img = await loadPNG(imagePath);
+	for (let yy = 0; yy < img.height; yy++) {
+		for (let xx = 0; xx < img.width; xx++) {
+			const srcIdx = (yy * img.width + xx) << 2;
+			const dstIdx = ((y + yy) * png.width + (x + xx)) << 2;
+
+			png.data[dstIdx] = img.data[srcIdx]!;
+			png.data[dstIdx + 1] = img.data[srcIdx + 1]!;
+			png.data[dstIdx + 2] = img.data[srcIdx + 2]!;
+			png.data[dstIdx + 3] = img.data[srcIdx + 3]!;
+		}
+	}
+}
+
+function runCommand(cmd: string, args: string[] = [], options: any = {}) {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(cmd, args, { stdio: 'inherit', ...options });
+
+    proc.on('close', (code) => {
+      if (code === 0) resolve(code);
+      else reject(new Error(`Process exited with code ${code}`));
+    });
+
+    proc.on('error', reject);
+  });
+}
+
+console.log("Drawing Hall of Shame...");
 await drawHallOfShame();
 
-// await renderTextOntoImage("1234", font, canvas, 20, 10);
+console.log("Cloning wplace-overlay repository...");
+await simpleGit().clone("https://github.com/cfpwastaken/wplace-overlay.git", "wplace-overlay", ["--depth=1"]);
+console.log("Rendering image onto canvas...");
+const PIC_PATH = "wplace-overlay/src/tiles/1100/672_orig.png";
+const pic = await loadPNG(PIC_PATH);
+await renderImageOnImage(pic, "hall_of_shame.png", 383, 0);
+console.log("Saving final image...");
+pic.pack().pipe(fs.createWriteStream(PIC_PATH));
 
-// canvas.pack().pipe(fs.createWriteStream("output.png"));
+console.log("Generating overlay...");
+await runCommand("python3", ["border.py", "1100/672"], { cwd: "wplace-overlay/src/tiles" });
+
+console.log("Committing changes...");
+// Set commit author for the overlay repository
+await simpleGit("wplace-overlay").addConfig("user.name", "Wplace DE Bot");
+await simpleGit("wplace-overlay").addConfig("user.email", "wplace@example.com");
+await simpleGit("wplace-overlay").add("./src/tiles/1100/672_orig.png");
+await simpleGit("wplace-overlay").add("./src/tiles/1100/672.png");
+await simpleGit("wplace-overlay").commit("tiles(hallofshame): update hall of shame");
+console.log("Pushing changes to repository...");
+await simpleGit("wplace-overlay").push("origin", "main");
+
+console.log("Deletion of temporary files...");
+fs.rmSync("wplace-overlay", { recursive: true, force: true });
