@@ -85,7 +85,7 @@ function drawRect(png: PNG, x: number, y: number, w: number, h: number, rgba: Co
 }
 
 const BLACK: Color = [0, 0, 0, 255];
-const RED: Color = [255, 0, 0, 255];
+const RED: Color = [237, 28, 36, 255];
 const WHITE: Color = [255, 255, 255, 255];
 
 function drawIntersectionPattern(canvas: PNG, centerX: number, centerY: number): void {
