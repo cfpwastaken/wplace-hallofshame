@@ -257,7 +257,9 @@ const PIC_PATH = "wplace-overlay/src/tiles/1100/672_orig.png";
 const pic = await loadPNG(PIC_PATH);
 await renderImageOnImage(pic, "hall_of_shame.png", 383, 0);
 console.log("Saving final image...");
-pic.pack().pipe(fs.createWriteStream(PIC_PATH));
+await new Promise<void>((resolve) => {
+	pic.pack().pipe(fs.createWriteStream(PIC_PATH)).on("finish", resolve);
+});
 
 console.log("Generating overlay...");
 await runCommand("python3", ["border.py", "1100/672"], { cwd: "wplace-overlay/src/tiles" });
