@@ -251,7 +251,7 @@ console.log("Drawing Hall of Shame...");
 await drawHallOfShame();
 
 console.log("Cloning wplace-overlay repository...");
-await simpleGit().clone("https://github.com/cfpwastaken/wplace-overlay.git", "wplace-overlay", ["--depth=1"]);
+await simpleGit().clone("git+ssh://git@github.com/cfpwastaken/wplace-overlay.git", "wplace-overlay", ["--depth=1"]);
 console.log("Rendering image onto canvas...");
 const PIC_PATH = "wplace-overlay/src/tiles/1100/672_orig.png";
 const pic = await loadPNG(PIC_PATH);
