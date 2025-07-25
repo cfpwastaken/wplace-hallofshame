@@ -40,7 +40,7 @@ function loadPNG(path: string): Promise<PNG> {
   });
 }
 
-async function renderTextOntoImage(text: string, fontImg: PNG, targetImg: PNG, xStart: number, yStart: number): Promise<void> {
+async function renderTextOntoImage(text: string, fontImg: PNG, targetImg: PNG, xStart: number, yStart: number, gap: number = 1): Promise<void> {
 	const chars = text.split("");
 
   let drawX = xStart;
@@ -62,10 +62,47 @@ async function renderTextOntoImage(text: string, fontImg: PNG, targetImg: PNG, x
       }
     }
 
-    drawX += charW + 1;
+    drawX += charW + gap;
   }
 
   // out.pack().pipe(fs.createWriteStream(outputPath));
+}
+
+function calculateTextWidth(text: string, gap: number = 1): number {
+	const chars = text.split("");
+	let textWidth = 0;
+	for (const ch of chars) {
+		const charW = CHAR_WIDTHS[ch];
+		if (charW !== undefined) {
+			textWidth += charW + gap; // Add character width and gap
+		}
+	}
+	return textWidth - gap; // Remove last gap
+}
+
+async function renderTextOntoEntry(text: string, fontImg: PNG, targetImg: PNG, xStart: number, yStart: number): Promise<void> {
+	const textWidth = calculateTextWidth(text);
+	if (textWidth <= 29) {
+		return await renderTextOntoImage(text, fontImg, targetImg, xStart, yStart);
+	}
+	console.warn(`Text "${text}" is too wide (${textWidth}px), making smaller.`);
+	const smallerTextWidth = calculateTextWidth(text, 0);
+	if (smallerTextWidth <= 29) {
+		return await renderTextOntoImage(text, fontImg, targetImg, xStart, yStart, 0);
+	}
+	console.warn(`Text "${text}" is still too wide (${smallerTextWidth}px) even when smaller.`);
+	const truncatedText = text.slice(1); // Remove the first character
+	const evenSmallerTextWidth = calculateTextWidth(truncatedText);
+	if (evenSmallerTextWidth <= 29) {
+		return await renderTextOntoImage(truncatedText, fontImg, targetImg, xStart, yStart, 0);
+	}
+	console.warn(`Text "${text}" is still too wide (${evenSmallerTextWidth}px) even when truncated.`);
+	const evenMoreSmallerTextWidth = calculateTextWidth(truncatedText, 0);
+	if (evenMoreSmallerTextWidth <= 29) {
+		return await renderTextOntoImage(truncatedText, fontImg, targetImg, xStart, yStart, 0);
+	}
+	console.warn(`Text "${text}" is still too wide (${evenMoreSmallerTextWidth}px) even when multiple times smaller. Rendering anyway.`);
+	return await renderTextOntoImage(truncatedText, fontImg, targetImg, xStart, yStart, 0);
 }
 
 const HALL_OF_SHAME = JSON.parse(fs.readFileSync("hallofshame.json", "utf8")) as number[];
@@ -200,7 +237,7 @@ async function drawHallOfShame() {
 			const text = HALL_OF_SHAME[idx] ? "#" + HALL_OF_SHAME[idx] : ""; // e.g. "#123"
 
 			if (text) {
-				await renderTextOntoImage(text, font, canvas, x + 1, y + 1);
+				await renderTextOntoEntry(text, font, canvas, x + 1, y + 1);
 			}
 
 			x += entryWidth - 1;
@@ -216,7 +253,9 @@ async function drawHallOfShame() {
 	// Draw intersection patterns separately
 	drawAllIntersections(canvas, entryStarts, rowStarts, rows, entriesPerRow);
 
-	canvas.pack().pipe(fs.createWriteStream("hall_of_shame.png"));
+	await new Promise<void>((resolve) => {
+		canvas.pack().pipe(fs.createWriteStream("hall_of_shame.png")).on("finish", resolve);
+	});
 }
 
 async function renderImageOnImage(png: PNG, imagePath: string, x: number, y: number): Promise<void> {
