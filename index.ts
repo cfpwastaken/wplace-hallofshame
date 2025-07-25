@@ -62,7 +62,9 @@ async function renderTextOntoImage(text: string, fontImg: PNG, targetImg: PNG, x
       }
     }
 
-    drawX += charW + gap;
+    drawX += charW + (
+			ch === "#" ? 1 : gap // Force gap after "#" character, otherwise use normal gap
+		);
   }
 
   // out.pack().pipe(fs.createWriteStream(outputPath));
@@ -74,10 +76,10 @@ function calculateTextWidth(text: string, gap: number = 1): number {
 	for (const ch of chars) {
 		const charW = CHAR_WIDTHS[ch];
 		if (charW !== undefined) {
-			textWidth += charW + gap; // Add character width and gap
+			textWidth += charW + (ch === "#" ? 1 : gap); // Add character width and gap
 		}
 	}
-	return textWidth - gap; // Remove last gap
+	return textWidth - (chars[chars.length - 1] === "#" ? 1 : gap); // Remove last gap
 }
 
 async function renderTextOntoEntry(text: string, fontImg: PNG, targetImg: PNG, xStart: number, yStart: number): Promise<void> {
