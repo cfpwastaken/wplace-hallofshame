@@ -255,9 +255,10 @@ async function drawHallOfShame() {
 	// Draw intersection patterns separately
 	drawAllIntersections(canvas, entryStarts, rowStarts, rows, entriesPerRow);
 
-	await new Promise<void>((resolve) => {
-		canvas.pack().pipe(fs.createWriteStream("hall_of_shame.png")).on("finish", resolve);
-	});
+	// await new Promise<void>((resolve) => {
+	// 	canvas.pack().pipe(fs.createWriteStream("hall_of_shame.png")).on("finish", resolve);
+	// });
+	return canvas;
 }
 
 async function renderImageOnImage(png: PNG, imagePath: string, x: number, y: number): Promise<void> {
@@ -289,31 +290,55 @@ function runCommand(cmd: string, args: string[] = [], options: any = {}) {
 }
 
 console.log("Drawing Hall of Shame...");
-await drawHallOfShame();
+const hos = await drawHallOfShame();
 
-console.log("Cloning wplace-overlay repository...");
-await simpleGit().clone("git+ssh://git@github.com/cfpwastaken/wplace-overlay.git", "wplace-overlay", ["--depth=1"]);
-console.log("Rendering image onto canvas...");
-const PIC_PATH = "wplace-overlay/src/tiles/1100/672_orig.png";
-const pic = await loadPNG(PIC_PATH);
-await renderImageOnImage(pic, "hall_of_shame.png", 383, 0);
-console.log("Saving final image...");
-await new Promise<void>((resolve) => {
-	pic.pack().pipe(fs.createWriteStream(PIC_PATH)).on("finish", resolve);
+// console.log("Cloning wplace-overlay repository...");
+// await simpleGit().clone("git+ssh://git@github.com/cfpwastaken/wplace-overlay.git", "wplace-overlay", ["--depth=1"]);
+// console.log("Rendering image onto canvas...");
+// const PIC_PATH = "wplace-overlay/src/tiles/1100/672_orig.png";
+// const pic = await loadPNG(PIC_PATH);
+// await renderImageOnImage(pic, "hall_of_shame.png", 383, 0);
+// console.log("Saving final image...");
+// await new Promise<void>((resolve) => {
+// 	pic.pack().pipe(fs.createWriteStream(PIC_PATH)).on("finish", resolve);
+// });
+
+// console.log("Generating overlay...");
+// await runCommand("python3", ["border.py", "1100/672"], { cwd: "wplace-overlay/src/tiles" });
+
+// console.log("Committing changes...");
+// // Set commit author for the overlay repository
+// await simpleGit("wplace-overlay").addConfig("user.name", "Wplace DE Bot");
+// await simpleGit("wplace-overlay").addConfig("user.email", "wplace@example.com");
+// await simpleGit("wplace-overlay").add("./src/tiles/1100/672_orig.png");
+// await simpleGit("wplace-overlay").add("./src/tiles/1100/672.png");
+// await simpleGit("wplace-overlay").commit("tiles(hallofshame): update hall of shame");
+// console.log("Pushing changes to repository...");
+// await simpleGit("wplace-overlay").push("origin", "main");
+
+// console.log("Deletion of temporary files...");
+// fs.rmSync("wplace-overlay", { recursive: true, force: true });
+
+const API_KEY = process.env.API_KEY;
+if (!API_KEY) {
+	console.error("API_KEY is not set. Please set the API_KEY environment variable.");
+	process.exit(1);
+}
+const body = new FormData();
+const buffer = PNG.sync.write(hos);
+body.append("file", new Blob([buffer]), "hos.png");
+body.append("slug", "hos-list");
+const res = await fetch(`https://cfp.is-a.dev/wplace/api/replaceImage`, {
+	method: "POST",
+	headers: {
+		"Authorization": `Bearer ${API_KEY}`,
+	},
+	body
 });
-
-console.log("Generating overlay...");
-await runCommand("python3", ["border.py", "1100/672"], { cwd: "wplace-overlay/src/tiles" });
-
-console.log("Committing changes...");
-// Set commit author for the overlay repository
-await simpleGit("wplace-overlay").addConfig("user.name", "Wplace DE Bot");
-await simpleGit("wplace-overlay").addConfig("user.email", "wplace@example.com");
-await simpleGit("wplace-overlay").add("./src/tiles/1100/672_orig.png");
-await simpleGit("wplace-overlay").add("./src/tiles/1100/672.png");
-await simpleGit("wplace-overlay").commit("tiles(hallofshame): update hall of shame");
-console.log("Pushing changes to repository...");
-await simpleGit("wplace-overlay").push("origin", "main");
-
-console.log("Deletion of temporary files...");
-fs.rmSync("wplace-overlay", { recursive: true, force: true });
+if(res.ok) {
+	console.log("HoS image uploaded successfully.");
+} else {
+	console.error("Failed to upload HoS image:", res.statusText);
+	const text = await res.text();
+	console.error("Response body:", text);
+}
